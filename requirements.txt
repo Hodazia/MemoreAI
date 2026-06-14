@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+langchain
+langchain-openai
+langchain-community
+requests
+tavily-python
+faiss-cpu
+sentence-transformers
