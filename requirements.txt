@@ -11,3 +11,6 @@ SQLAlchemy
 langchain-huggingface
 chromadb
 langchain-chroma
+psycopg
+psycopg_binary
+pypdf

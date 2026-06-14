@@ -15,6 +15,9 @@ from tools import (
     sympy_math,
     search_bot_knowledge
 )
+from TOOLS.document_search_tool import (
+    create_document_search_tool
+)
 
 load_dotenv()
 OPENAI_KEY = os.getenv("OPENAI_KEY")
@@ -23,16 +26,6 @@ llm = ChatOpenAI(
     model="gpt-4o-mini",
     api_key=OPENAI_KEY
 )
-
-tools = [
-    calculator,
-    github_search,
-    current_time,
-    solve_equation,
-    solve_math_problem,
-    sympy_math,
-    search_bot_knowledge
-]
 
 prompt = ChatPromptTemplate.from_messages(
     [
@@ -79,6 +72,22 @@ prompt = ChatPromptTemplate.from_messages(
             - your version
             - how you work
 
+            5. Use search_documents whenever:
+
+            - user asks about a document
+            - user asks about a file they uploaded
+            - user asks questions that may require information from uploaded files
+
+            Examples:
+
+            - summarize my document
+            - what is written in the pdf
+            - explain the contract
+            - what does my resume say
+            - tell me about the uploaded file
+
+            Always use search_documents before answering document-related questions.
+
             IMPORTANT:
 
             After using search_bot_knowledge,
@@ -94,20 +103,32 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-agent = create_tool_calling_agent(
-    llm,
-    tools,
-    prompt
-)
+def ask_agent(question: str,sender:str):
+    document_tool = (create_document_search_tool(sender))
 
-agent_executor = AgentExecutor(
-    agent=agent,
-    tools=tools,
-    verbose=True,
-    return_intermediate_steps=True
-)
+    tools = [
+        calculator,
+        github_search,
+        current_time,
+        solve_equation,
+        solve_math_problem,
+        sympy_math,
+        search_bot_knowledge,
+        document_tool
+    ]
 
-def ask_agent(question: str):
+    agent = create_tool_calling_agent(
+        llm,
+        tools,
+        prompt
+    )
+
+    agent_executor = AgentExecutor(
+        agent=agent,
+        tools=tools,
+        verbose=True,
+        return_intermediate_steps=True
+    )
 
     response = agent_executor.invoke(
         {

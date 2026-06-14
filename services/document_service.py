@@ -39,6 +39,11 @@ import requests
 import os
 
 UPLOAD_DIR = "uploads"
+os.makedirs(
+    UPLOAD_DIR,
+    exist_ok=True
+)
+
 
 def get_document_url(
     media_id:str):

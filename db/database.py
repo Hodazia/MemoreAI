@@ -5,7 +5,7 @@ Basically here i will be making the DB as well as models which are gonna be used
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base
+from db.models import Base
 
 from config import DATABASE_URL
 

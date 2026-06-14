@@ -2,6 +2,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
+from services.ingestion_service import ingest_document
 from dotenv import load_dotenv
 from agents import ask_agent
 import os
@@ -81,12 +82,33 @@ def extract_message(payload):
         )
 
         sender = message["from"]
-        text = message["text"]["body"]
+        message_type = message["type"]
+        if message_type == "text":
 
-        return sender, text
+            return {
+                "sender": sender,
+                "type": "text",
+                "text": message["text"]["body"]
+            }
 
-    except Exception:
-        return None, None
+        elif message_type == "document":
+
+            return {
+                "sender": sender,
+                "type": "document",
+                "media_id": message["document"]["id"],
+                "filename": message["document"]["filename"],
+                "mime_type": message["document"].get(
+                    "mime_type",
+                    ""
+                )
+            }
+
+        return None
+
+    except Exception as e:
+        print(e)
+        return None
 
 
 @app.get("/webhook")
@@ -110,13 +132,93 @@ async def whatsapp_webhook(request: Request):
     body = await request.json()
 
     print(body)
-    sender, question = extract_message(body)
+    message = extract_message(body)
 
-    print(sender)
-    print(question)
+    # print(sender)
+    # print(question)
 
-    if not sender:
+    if not message:
         return {"status":"ignored"}
+
+    sender = message["sender"]
+    message_type = message["type"]
+
+    if message_type == "document":
+        try:
+            result = ingest_document(
+                sender=sender,
+                media_id=message["media_id"],
+                filename=message["filename"],
+                mime_type=message["mime_type"]
+            )
+
+            print(result)
+
+            send_whatsapp_message(
+                sender,
+                (
+                    "✅ Data ingested successfully.\n\n"
+                    "You can now ask questions "
+                    "about this document."
+                )
+            )
+
+            return {
+                "status": "ingested"
+            }
+
+        except Exception as e:
+            print(e)
+
+            send_whatsapp_message(sender,
+             "❌ Failed to process document."
+            )
+
+            return {
+                "status":"failed"
+            }
+
+    if message_type == "text":
+
+        question = message["text"]
+
+        result = ask_agent(
+            question,
+            sender
+        )
+
+        answer = result["answer"]
+
+        tools_used = (
+            result["tools_used"]
+        )
+
+        tool_text = (
+            ", ".join(tools_used)
+            if tools_used
+            else "None"
+        )
+
+        final_message = f"""
+            Answer:
+
+            {answer}
+
+            -----------------
+
+            Tools Used:
+
+            {tool_text}
+            """
+
+        send_whatsapp_message(
+            sender,
+            final_message
+        )
+
+        return {
+            "status": "success"
+        }
 
     result = ask_agent(question)
     answer = result["answer"]

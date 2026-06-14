@@ -1,5 +1,5 @@
 from langchain_chroma import Chroma
-from embedding_service import embeddings
+from services.embedding_service import embeddings
 
 VECTOR_DB_PATH="chroma_db"
 

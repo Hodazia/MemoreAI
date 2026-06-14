@@ -1,11 +1,11 @@
-from document_service import (
+from services.loader_service import ( 
+    load_documents )
+from services.chunking_service import ( create_chunks )
+from services.chroma_service import  ( store_documents )
+from services.metadata_service import  ( save_document_metadata )
+from services.document_service import (
     save_whatsapp_document
 )
-
-from loader_service import load_documents
-from chunking_service import create_chunks
-from chroma_service import store_documents
-from metadata_service import save_document_metadata
 
 def ingest_document(
     sender:str,

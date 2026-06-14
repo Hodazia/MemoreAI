@@ -15,7 +15,7 @@ def save_document_metadata(
         document = Document(
             sender=sender,
             filename=filename,
-            file_path=filepath,
+            filepath=filepath,
             mime_type=mime_type,
             chunk_count=chunk_count
         )

@@ -18,7 +18,7 @@ def load_documents(filepath:str):
     '''
 
     # extract the extension of the file and accordingly write the different loaders
-    extension = Path(filepath).suffix().lower()
+    extension = Path(filepath).suffix.lower()
 
     # for pdf , if u have a 10 page pdf, then u will get 10 Document objects
     if extension == ".pdf":
