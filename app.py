@@ -16,6 +16,10 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 
+# create a uploads directory in our own folder 
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER,exist_ok=True)
+
 app = FastAPI()
 
 
