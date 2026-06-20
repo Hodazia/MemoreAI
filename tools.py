@@ -5,6 +5,7 @@ from datetime import date, datetime
 import requests
 import math 
 import sympy as sp
+from services.web_search import search_web
 
 embeddings = HuggingFaceBgeEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -343,3 +344,18 @@ def search_bot_knowledge(
             for doc in docs
         ]
     )
+
+
+@tool
+def web_search_content(query:str)->str:
+    """
+    Search the internet for recent and real-time information.
+
+    Use this tool whenever:
+    - Current events are involved
+    - Recent developments are needed
+    - The answer may have changed recently
+    - The user explicitly asks to search the web
+    """
+
+    return search_web(query)

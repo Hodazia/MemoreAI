@@ -13,6 +13,7 @@ from tools import (
     solve_equation,
     solve_math_problem,
     sympy_math,
+    web_search_content,
     search_bot_knowledge
 )
 from TOOLS.document_search_tool import (
@@ -72,7 +73,36 @@ prompt = ChatPromptTemplate.from_messages(
             - your version
             - how you work
 
-            5. Use search_documents whenever:
+            5.use web_search_content
+            - Searches the internet for current information.
+            - Use when the question depends on recent events, current affairs, live information, product releases, 
+            company updates, technology news, market news, or information that may have changed recently.
+
+            Always use web_search_content for requests such as:
+
+            - Search for ...
+            - Look up ...
+            - Find information about ...
+            - What's happening with ...
+            - Latest news about ...
+            - Recent developments in ...
+            - Current state of ...
+            - Today's updates on ...
+            - What happened recently ...
+            - Trending topics related to ...
+
+            After receiving web_search_tool results:
+
+            - Read all returned search results.
+            - Use the answer field as a quick summary.
+            - Validate information using the search results.
+            - Summarize findings clearly.
+            - Cite source URLs when relevant.
+            - Do not dump raw JSON unless explicitly requested.
+
+
+
+            6. Use search_documents whenever:
 
             - user asks about a document
             - user asks about a file they uploaded
@@ -113,6 +143,7 @@ def ask_agent(question: str,sender:str):
         solve_equation,
         solve_math_problem,
         sympy_math,
+        web_search_content,
         search_bot_knowledge,
         document_tool
     ]
