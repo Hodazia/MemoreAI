@@ -6,9 +6,7 @@ langchain-community
 requests
 tavily-python
 faiss-cpu
-sentence-transformers
 SQLAlchemy
-langchain-huggingface
 chromadb
 langchain-chroma
 psycopg

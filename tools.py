@@ -6,10 +6,11 @@ import requests
 import math 
 import sympy as sp
 from services.web_search import search_web
+from services.embedding_service import embeddings
 
-embeddings = HuggingFaceBgeEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
+# embeddings = HuggingFaceBgeEmbeddings(
+#     model_name="sentence-transformers/all-MiniLM-L6-v2"
+# )
 
 db = FAISS.load_local(
     "bot_knowledge_db",

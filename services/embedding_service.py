@@ -1,13 +1,11 @@
-from langchain_huggingface import (
-    HuggingFaceEmbeddings
-)
+from langchain_openai import OpenAIEmbeddings
+from dotenv import load_dotenv
+import os
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="BAAI/bge-small-en-v1.5",
-    model_kwargs={
-        "device": "cpu"
-    },
-    encode_kwargs={
-        "normalize_embeddings": True
-    }
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_KEY")
+
+embeddings = OpenAIEmbeddings(
+    model="text-embedding-3-small",
+    api_key=OPENAI_API_KEY
 )
