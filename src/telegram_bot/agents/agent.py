@@ -26,16 +26,12 @@ agent = create_agent(
 async def ask_agent(message: str) -> str:
     """
     Send a user message to the AI agent and return the final response.
+    the agent accepts system, user assistant , 
     """
 
     result = await agent.ainvoke(
         {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": message,
-                }
-            ]
+            "messages": message,
         }
     )
 
