@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import (
 
 from sqlalchemy.orm import DeclarativeBase
 
-from config import get_settings
+from telegram_bot.core.config import get_settings
 
 
 settings = get_settings()
@@ -36,3 +36,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
     async with AsyncSessionLocal() as session:
         yield session
+
+async def create_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)

@@ -9,11 +9,15 @@ _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 class Settings(BaseSettings):
     telegram_bot_token: str
     openai_api_key: str
-    database_url:str 
-    jwt_secret_key:str 
-    jwt_algorithm:str
-    access_token_expire_minuutes:str
-    refresh_token_expire_days:str
+
+    database_url: str = (
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/telegram_bot"
+    )
+
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
 
     app_env: str = "development"
 
@@ -23,15 +27,12 @@ class Settings(BaseSettings):
     port: int = 8000
 
     model_name: str = "gpt-4o-mini"
-
     model_temperature: float = 0.2
-
     model_max_tokens: int = 1000
-
     model_timeout: int = 30
 
-    admin_useranme:str
-    admin_password:str
+    admin_username: str = "admin"
+    admin_password: str = "admin"
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),

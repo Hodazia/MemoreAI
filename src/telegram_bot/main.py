@@ -8,6 +8,8 @@ from telegram import Update
 
 from telegram_bot.core.config import get_settings
 from telegram_bot.tg.bot import create_telegram_application
+import telegram_bot.models
+from telegram_bot.core.database import create_tables
 
 
 logging.basicConfig(
@@ -26,6 +28,9 @@ telegram_application = create_telegram_application()
 async def lifespan(app: FastAPI):
 
     logger.info("Starting application...")
+
+    #create DB tables
+    await create_tables()
 
     await telegram_application.initialize()
     await telegram_application.start()

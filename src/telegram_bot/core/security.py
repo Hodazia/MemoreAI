@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from pwdlib import PasswordHash
 
-from config import get_settings
+from telegram_bot.core.config import get_settings
 
 
 settings = get_settings()
