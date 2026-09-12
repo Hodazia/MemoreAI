@@ -3,5 +3,12 @@ uvicorn
 python-telegram-bot
 langchain
 langchain-openai
+sqlalchemy
+asyncpg
+asyncio
+alembic
 pydantic-settings
 python-dotenv
+pwdlib[argon2]
+pyJWT
+python-multipart

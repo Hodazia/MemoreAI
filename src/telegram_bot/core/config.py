@@ -9,6 +9,11 @@ _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 class Settings(BaseSettings):
     telegram_bot_token: str
     openai_api_key: str
+    database_url:str 
+    jwt_secret_key:str 
+    jwt_algorithm:str
+    access_token_expire_minuutes:str
+    refresh_token_expire_days:str
 
     app_env: str = "development"
 
@@ -24,6 +29,9 @@ class Settings(BaseSettings):
     model_max_tokens: int = 1000
 
     model_timeout: int = 30
+
+    admin_useranme:str
+    admin_password:str
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),
