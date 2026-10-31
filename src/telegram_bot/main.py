@@ -11,6 +11,7 @@ from telegram_bot.tg.bot import create_telegram_application
 from telegram_bot.core.admin import create_admin_if_not_exists
 from telegram_bot.api.auth import router as auth_router
 from telegram_bot.api.admin import router as admin_router
+from telegram_bot.api.documents import router as documents_router
 from telegram_bot.api.knowledge import router as knowledge_router
 import telegram_bot.models
 from telegram_bot.core.database import create_tables
@@ -78,6 +79,13 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(knowledge_router)
+app.include_router(documents_router)
+'''
+GET /documents
+Authorization: Bearer <your-access-token>
+
+the users shall never be able to list other user's documents!!
+'''
 
 @app.get("/health")
 async def health_check():

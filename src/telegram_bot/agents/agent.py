@@ -5,7 +5,7 @@ from telegram_bot.agents.prompts import SYSTEM_PROMPT
 from telegram_bot.core.config import get_settings
 from telegram_bot.agents.tools import (
     AgentContext,
-    search_knowledge
+    build_document_tools
 )
 
 
@@ -23,7 +23,7 @@ llm = ChatOpenAI(
 
 agent = create_agent(
     model=llm,
-    tools=[search_knowledge],
+    tools=[build_document_tools],
     context_schema=AgentContext,
     system_prompt=SYSTEM_PROMPT,
 )

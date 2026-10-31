@@ -1,7 +1,10 @@
 import logging
+from pathlib import Path
+from uuid import uuid4
 
 from telegram import Update
 from telegram.ext import ContextTypes
+from sqlalchemy import select
 
 from telegram_bot.agents.agent import ask_agent
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +22,11 @@ from telegram_bot.services.conversation_service import (
     get_conversation_messages,
     save_message,
 )
+from telegram_bot.models.document import Document
+from telegram_bot.services.document_upload_service import save_and_index_document, MAX_FILE_SIZE
+from telegram_bot.services.document_service import SUPPORTED_EXTENSIONS
+
+
 
 logger = logging.getLogger(__name__)
 REGISTER_USERNAME = 1
@@ -443,3 +451,129 @@ async def message_handler(
         await update.message.reply_text(
             response
         )
+
+
+async def document_upload_handler(
+    update:Update,
+    context:ContextTypes.DEFAULT_TYPE
+):
+    message = update.effective_message
+    telegram_user = update.effective_user
+
+    if message is None or message.document is None:
+        return
+
+    tg_document = message.document
+    filename = tg_document.file_name or "uploaded_file"
+    extension = Path(filename).suffix.lower()
+
+    if extension not in SUPPORTED_EXTENSIONS:
+        await message.reply_text(
+            "Unsupported format. Please upload PDF, DOCX, or TXT."
+        )
+        return
+
+    if tg_document.file_size and tg_document.file_size > MAX_FILE_SIZE:
+        await message.reply_text("The maximum file size is 10 MB.")
+        return
+
+    temporary_path = Path("uploads") / f"tmp-{uuid4().hex}{extension}"
+    temporary_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        async with AsyncSessionLocal() as db:
+            session = await get_telegram_session(
+                db,
+                telegram_user.id,
+            )
+
+            if not session:
+                await message.reply_text(
+                    "Please /login before uploading documents."
+                )
+                return
+
+            telegram_file = await context.bot.get_file(
+                tg_document.file_id
+            )
+
+            await telegram_file.download_to_drive(
+                custom_path=str(temporary_path)
+            )
+
+            document, result = await save_and_index_document(
+                db,
+                user_id=session.user_id,
+                original_filename=filename,
+                file_size=tg_document.file_size or temporary_path.stat().st_size,
+                downloaded_path=str(temporary_path),
+            )
+
+        await message.reply_text(
+            f"✅ Document indexed successfully!\n\n"
+            f"Name: {document.original_filename}\n"
+            f"Document ID: {document.id}\n"
+            f"Chunks indexed: {result['chunks_created']}\n\n"
+            f"You can now ask me questions about its contents."
+        )
+
+    except ValueError as exc:
+        await message.reply_text(str(exc))
+
+    except Exception:
+        logger.exception("Telegram document upload failed")
+        await message.reply_text(
+            "I couldn't process that document. Please try again."
+        )
+
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
+async def documents_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+    telegram_user = update.effective_user
+
+    if message is None or telegram_user is None:
+        return
+
+    async with AsyncSessionLocal() as db:
+        session = await get_telegram_session(
+            db,
+            telegram_user.id,
+        )
+
+        if not session:
+            await message.reply_text(
+                "Please /login to see your documents."
+            )
+            return
+
+        result = await db.execute(
+            select(Document)
+            .where(Document.user_id == session.user_id)
+            .order_by(Document.created_at.desc())
+            .limit(20)
+        )
+        documents = result.scalars().all()
+
+    if not documents:
+        await message.reply_text(
+            "You haven't uploaded any documents yet. "
+            "Send me a PDF, DOCX, or TXT file to get started."
+        )
+        return
+
+    lines = ["📚 Your documents:\n"]
+
+    for document in documents:
+        lines.append(
+            f"#{document.id} — {document.original_filename}\n"
+            f"Status: {document.status}\n"
+            f"Type: {document.file_type}\n"
+        )
+
+    await message.reply_text("\n".join(lines))

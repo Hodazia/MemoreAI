@@ -1,10 +1,6 @@
 '''
 knowledge service for RAG!
 
-
-
-
-
 '''
 
 from langchain_core.documents import Document
@@ -24,36 +20,38 @@ async def add_user_knowledge(
     user_id: int,
     text: str,
     source: str = "manual",
+    document_id:int | None = None,
 ):
-    documents = text_splitter.create_documents(
+    chunks = text_splitter.create_documents(
         [text]
     )
 
     namespace = f"user-{user_id}"
 
-    for document in documents:
-        document.metadata.update({
+    for chunk in chunks:
+        chunk.metadata.update({
             "user_id": str(user_id),
             "source": source,
         })
 
-    ids = [
-        str(uuid4())
-        for _ in documents
-    ]
+        if document_id is not None:
+            chunk.metadata["document_id"] = str(document_id)
+
+    vector_ids = [str(uuid4()) for _ in chunks]
 
     vector_store = get_vector_store()
 
     await vector_store.aadd_documents(
-        documents=documents,
-        ids=ids,
+        documents=chunks,
+        ids=vector_ids,
         namespace=namespace,
     )
 
     return {
-        "chunks_created": len(documents),
+        "chunks_created": len(chunks),
         "namespace": namespace,
     }
+
 
 async def search_user_knowledge(
     user_id: int,

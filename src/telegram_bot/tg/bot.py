@@ -22,6 +22,8 @@ from telegram_bot.tg.handlers import (
     register_start,
     register_username,
     start_handler,
+    document_upload_handler,
+    documents_handler
 )
 
 
@@ -126,6 +128,17 @@ def create_telegram_application():
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
             message_handler,
+        )
+    )
+
+    application.add_handler(
+        CommandHandler("documents",documents_handler)
+    )
+
+    application.add_handler(
+        MessageHandler(
+            filters.Document.ALL,
+            document_upload_handler
         )
     )
 
