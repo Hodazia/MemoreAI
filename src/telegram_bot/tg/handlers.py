@@ -272,43 +272,127 @@ async def get_logged_in_user(
 
         return session.user_id
 
+# async def message_handler(
+#     update,
+#     context,
+# ):
+
+#     if update.message is None:
+#         return
+
+#     telegram_user_id = update.effective_user.id
+
+#     user_id = await get_logged_in_user(
+#         telegram_user_id
+#     )
+
+#     if user_id is None:
+
+#         await update.message.reply_text(
+#             "🔐 You are not logged in.\n\n"
+#             "Please use /register to create an "
+#             "account, or /login if you already "
+#             "have one."
+#         )
+
+#         return
+
+#     user_message = update.message.text
+
+#     await update.message.chat.send_action(
+#         "typing"
+#     )
+
+#     async with AsyncSessionLocal() as db:
+
+#         conversation = await get_or_create_conversation(
+#             db,
+#             user_id,
+#         )
+
+#         history = await get_conversation_messages(
+#             db,
+#             conversation.id,
+#             limit=20,
+#         )
+
+#         await save_message(
+#             db,
+#             conversation.id,
+#             "user",
+#             user_message,
+#         )
+
+#         messages = [
+#             {
+#                 "role": message.role,
+#                 "content": message.content,
+#             }
+#             for message in history
+#         ]
+
+#         messages.append(
+#             {
+#                 "role": "user",
+#                 "content": user_message,
+#             }
+#         )
+
+#         response = await ask_agent(
+#             messages
+#         )
+
+#         await save_message(
+#             db,
+#             conversation.id,
+#             "assistant",
+#             response,
+#         )
+
+#     await update.message.reply_text(
+#         response
+#     )
+
+
 async def message_handler(
-    update,
-    context,
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
 ):
 
-    if update.message is None:
-        return
-
     telegram_user_id = update.effective_user.id
-
-    user_id = await get_logged_in_user(
-        telegram_user_id
-    )
-
-    if user_id is None:
-
-        await update.message.reply_text(
-            "🔐 You are not logged in.\n\n"
-            "Please use /register to create an "
-            "account, or /login if you already "
-            "have one."
-        )
-
-        return
-
-    user_message = update.message.text
-
-    await update.message.chat.send_action(
-        "typing"
-    )
+    user_text = update.message.text
 
     async with AsyncSessionLocal() as db:
 
+        # --------------------------------
+        # 1. Check Telegram authentication
+        # --------------------------------
+
+        session = await get_telegram_session(
+            db,
+            telegram_user_id,
+        )
+
+        if not session:
+            await update.message.reply_text(
+                "You are not logged in. "
+                "Please use /login first."
+            )
+
+            return
+
+        # --------------------------------
+        # 2. Get/create user's conversation
+        # --------------------------------
+
         conversation = await get_or_create_conversation(
             db,
-            user_id,
+            user_id=session.user_id,
         )
+
+        # --------------------------------
+        # 3. Load previous conversation
+        # --------------------------------
 
         history = await get_conversation_messages(
             db,
@@ -316,39 +400,46 @@ async def message_handler(
             limit=20,
         )
 
+        # --------------------------------
+        # 4. Save user's new message
+        # --------------------------------
+
         await save_message(
             db,
             conversation.id,
-            "user",
-            user_message,
+            role="user",
+            content=user_text,
         )
 
-        messages = [
-            {
-                "role": message.role,
-                "content": message.content,
-            }
-            for message in history
-        ]
-
-        messages.append(
-            {
-                "role": "user",
-                "content": user_message,
-            }
-        )
+        # --------------------------------
+        # 5. Ask LangChain agent
+        # --------------------------------
 
         response = await ask_agent(
-            messages
+            messages=history + [
+                {
+                    "role": "user",
+                    "content": user_text,
+                }
+            ],
+            user_id=session.user_id,
         )
+
+        # --------------------------------
+        # 6. Save AI response
+        # --------------------------------
 
         await save_message(
             db,
             conversation.id,
-            "assistant",
-            response,
+            role="assistant",
+            content=response,
         )
 
-    await update.message.reply_text(
-        response
-    )
+        # --------------------------------
+        # 7. Send response to Telegram
+        # --------------------------------
+
+        await update.message.reply_text(
+            response
+        )

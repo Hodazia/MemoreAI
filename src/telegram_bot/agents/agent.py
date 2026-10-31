@@ -3,6 +3,10 @@ from langchain_openai import ChatOpenAI
 
 from telegram_bot.agents.prompts import SYSTEM_PROMPT
 from telegram_bot.core.config import get_settings
+from telegram_bot.agents.tools import (
+    AgentContext,
+    search_knowledge
+)
 
 
 settings = get_settings()
@@ -19,11 +23,12 @@ llm = ChatOpenAI(
 
 agent = create_agent(
     model=llm,
-    tools=[],
+    tools=[search_knowledge],
+    context_schema=AgentContext,
     system_prompt=SYSTEM_PROMPT,
 )
 
-async def ask_agent(message: str) -> str:
+async def ask_agent(message: str,user_id: int) -> str:
     """
     Send a user message to the AI agent and return the final response.
     the agent accepts system, user assistant , 
@@ -32,7 +37,8 @@ async def ask_agent(message: str) -> str:
     result = await agent.ainvoke(
         {
             "messages": message,
-        }
+        },
+        context=AgentContext(user_id=user_id)
     )
 
     final_message = result["messages"][-1]

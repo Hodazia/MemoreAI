@@ -33,6 +33,10 @@ class Settings(BaseSettings):
 
     admin_username: str = "admin"
     admin_password: str = "admin"
+    pinecone_api_key: str
+    pinecone_index_name: str
+
+    embedding_model: str = "text-embedding-3-small"
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),
