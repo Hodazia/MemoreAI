@@ -45,6 +45,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    redis_url: str = "redis://localhost:6379/0"
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str
+    smtp_password: str
+    smtp_from: str
+
 
 @lru_cache
 def get_settings() -> Settings:
