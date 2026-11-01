@@ -9,5 +9,6 @@ __all__ = [
     "Conversation",
     "Message",
     "TelegramSession",
-    "Document"
+    "Document",
+    "Memory"
 ]

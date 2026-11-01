@@ -26,6 +26,15 @@ from telegram_bot.tg.handlers import (
     documents_handler
 )
 
+from telegram_bot.tg.memory_handlers import (
+    remember_handler, 
+    memory_handler,
+    memory_edit_handler,
+    forget_handler,
+    forget_confirm_handler,
+    forget_cancel_handler
+)
+
 
 settings = get_settings()
 
@@ -141,5 +150,31 @@ def create_telegram_application():
             document_upload_handler
         )
     )
+
+    application.add_handler(
+        CommandHandler("remember",remember_handler)
+    )
+
+
+    application.add_handler(
+        CommandHandler("memory", memory_handler)
+    )
+
+    application.add_handler(
+        CommandHandler("memory_edit", memory_edit_handler)
+    )
+
+    application.add_handler(
+        CommandHandler("forget", forget_handler)
+    )
+
+    application.add_handler(
+        CommandHandler("forget_confirm", forget_confirm_handler)
+    )
+
+    application.add_handler(
+        CommandHandler("forget_cancel", forget_cancel_handler)
+    )
+
 
     return application
