@@ -18,7 +18,7 @@ async def get_current_user(
 
     try:
         ''' 
-        so the httpauthorizationcredentials will automatically lok for
+        so the httpauthorizationcredentials will automatically look for access token
         bearer token in authorization  header and it will parse header and 
         credentials will store HTTPAuthorizationCredentials object and its credentials will
         have token

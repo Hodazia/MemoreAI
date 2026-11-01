@@ -367,8 +367,24 @@ async def message_handler(
     context: ContextTypes.DEFAULT_TYPE,
 ):
 
-    telegram_user_id = update.effective_user.id
-    user_text = update.message.text
+    message  = update.effective_message
+    telegram_user = update.effective_user
+
+    if message is None or telegram_user is None:
+        return
+
+    user_text = message.text
+
+    if not user_text or not user_text.strip():
+        await message.reply_text(
+            "Please send a text message."
+        )
+        return
+
+    telegram_user_id = telegram_user.id
+
+    await message.chat.send_action("typing")
+    #user_text = update.message.text
 
     async with AsyncSessionLocal() as db:
 
@@ -388,6 +404,8 @@ async def message_handler(
             )
 
             return
+
+        user_id = session.user_id
 
         # --------------------------------
         # 2. Get/create user's conversation
@@ -409,9 +427,17 @@ async def message_handler(
         )
 
         # --------------------------------
-        # 4. Save user's new message
+        # 4. Convert DB Message objects into Langchain-compatible (role,content) tuples
         # --------------------------------
 
+        langchain_messages = [
+            (item.role, item.content) for item in history if item.role in ["user", "assistant"]
+        ]
+
+        # append the current message exactly once
+        langchain_messages.append(("user", user_text))
+
+        #persist the incoming message
         await save_message(
             db,
             conversation.id,
@@ -419,23 +445,33 @@ async def message_handler(
             content=user_text,
         )
 
-        # --------------------------------
-        # 5. Ask LangChain agent
-        # --------------------------------
+        await db.commit()
 
+    # 8. Invoke the agent after releasing the DB session.
+    try:
         response = await ask_agent(
-            messages=history + [
-                {
-                    "role": "user",
-                    "content": user_text,
-                }
-            ],
-            user_id=session.user_id,
+            messages=langchain_messages,
+            user_id=user_id,
         )
 
-        # --------------------------------
-        # 6. Save AI response
-        # --------------------------------
+    except Exception:
+        logger.exception(
+            "Agent invocation failed for user_id=%s",
+            user_id,
+        )
+
+        await message.reply_text(
+            "Sorry, I couldn't process your message. "
+            "Please try again."
+        )
+        return
+
+    # 9. Persist the agent's response.
+    async with AsyncSessionLocal() as db:
+        conversation = await get_or_create_conversation(
+            db,
+            user_id=user_id,
+        )
 
         await save_message(
             db,
@@ -444,13 +480,43 @@ async def message_handler(
             content=response,
         )
 
+        await db.commit()
+
+    # 10. Send the response to Telegram.
+    await message.reply_text(response)
+
         # --------------------------------
-        # 7. Send response to Telegram
+        # 5. Ask LangChain agent
         # --------------------------------
 
-        await update.message.reply_text(
-            response
-        )
+        # response = await ask_agent(
+        #     messages=history + [
+        #         {
+        #             "role": "user",
+        #             "content": user_text,
+        #         }
+        #     ],
+        #     user_id=session.user_id,
+        # )
+
+        # # --------------------------------
+        # # 6. Save AI response
+        # # --------------------------------
+
+        # await save_message(
+        #     db,
+        #     conversation.id,
+        #     role="assistant",
+        #     content=response,
+        # )
+
+        # # --------------------------------
+        # # 7. Send response to Telegram
+        # # --------------------------------
+
+        # await update.message.reply_text(
+        #     response
+        # )
 
 
 async def document_upload_handler(

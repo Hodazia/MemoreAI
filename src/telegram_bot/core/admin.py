@@ -6,7 +6,13 @@ from telegram_bot.core.security import hash_password
 from telegram_bot.models.user import User
 
 
+
 async def create_admin_if_not_exists():
+    '''
+    create an admin by default from the .env settings
+    username and password can be saved in the env files!
+    
+    '''
 
     settings = get_settings()
 
