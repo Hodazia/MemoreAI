@@ -1,3 +1,4 @@
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 
@@ -51,6 +52,9 @@ class Settings(BaseSettings):
     smtp_username: str
     smtp_password: str
     smtp_from: str
+
+    llm_input_cost: Decimal = 0.15
+    llm_output_cost: Decimal = 0.60
 
 
 @lru_cache
