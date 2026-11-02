@@ -7,7 +7,7 @@ from telegram_bot.core.database import Base
 
 
 def utc_now() -> datetime:
-    return datetime.now()
+    return datetime.now(timezone.utc)
 
 '''
 this table stores individual LLM calls, tool calls and errors. A trace can have many events

@@ -35,6 +35,19 @@ from telegram_bot.tg.memory_handlers import (
     forget_cancel_handler
 )
 
+from telegram_bot.tg.observability_commands import (
+    ai_help,
+    ai_health,
+    ai_stats,
+    ai_cost,
+    ai_failures,
+    ai_latency,
+    ai_models,
+    ai_trace,
+    ai_report,
+    ai_alerts,
+    ai_monitor
+)
 
 settings = get_settings()
 
@@ -133,12 +146,12 @@ def create_telegram_application():
         login_handler
     )
 
-    application.add_handler(
-        MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            message_handler,
-        )
-    )
+    # application.add_handler(
+    #     MessageHandler(
+    #         filters.TEXT & ~filters.COMMAND,
+    #         message_handler,
+    #     )
+    # )
 
     application.add_handler(
         CommandHandler("documents",documents_handler)
@@ -174,6 +187,37 @@ def create_telegram_application():
 
     application.add_handler(
         CommandHandler("forget_cancel", forget_cancel_handler)
+    )
+
+    #observability commands
+    observability_handlers = [
+        ("ai_help", ai_help),
+        ("ai_health", ai_health),
+        ("ai_stats", ai_stats),
+        ("ai_cost", ai_cost),
+        ("ai_failures", ai_failures),
+        ("ai_latency", ai_latency),
+        ("ai_models", ai_models),
+        ("ai_trace", ai_trace),
+        ("ai_report", ai_report),
+        ("ai_alerts", ai_alerts),
+        ("ai_monitor", ai_monitor),
+    ]
+
+    for command, callback in observability_handlers:
+        application.add_handler(
+            CommandHandler(command, callback)
+        )
+
+    # --------------------------------------------------
+    # Catch-all text handler LAST
+    # --------------------------------------------------
+
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            message_handler,
+        )
     )
 
 

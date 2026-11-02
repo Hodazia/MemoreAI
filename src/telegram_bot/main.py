@@ -14,6 +14,7 @@ from telegram_bot.api.admin import router as admin_router
 from telegram_bot.api.documents import router as documents_router
 from telegram_bot.api.knowledge import router as knowledge_router
 from telegram_bot.api.workflows import router as workflows_router
+from telegram_bot.api.observability import router as observability_router
 import telegram_bot.models
 from telegram_bot.core.database import create_tables
 
@@ -88,6 +89,7 @@ Authorization: Bearer <your-access-token>
 the users shall never be able to list other user's documents!!
 '''
 app.include_router(workflows_router)
+app.include_router(observability_router)
 
 @app.get("/health")
 async def health_check():

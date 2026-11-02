@@ -7,14 +7,14 @@ from telegram_bot.core.database import Base
 
 
 def utc_now() -> datetime:
-    return datetime.now()
+    return datetime.now(timezone.utc)
 
 class AgentTrace(Base):
     __tablename__ = "agent_traces"
     id: Mapped[str] = mapped_column(
         String(36),
         primary_key=True,
-        default = lambda: str(uuid4)
+        default = lambda: str(uuid4())
     )
 
     user_id: Mapped[int] = mapped_column(
@@ -49,4 +49,28 @@ class AgentTrace(Base):
         Integer,
         nullable=False,
         default=0,
+    )
+
+    # Trace-level error summary
+    error_type: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    error_message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_agent_traces_user_started",
+            "user_id",
+            "started_at",
+        ),
+        Index(
+            "ix_agent_traces_user_status",
+            "user_id",
+            "status",
+        ),
     )
