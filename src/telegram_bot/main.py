@@ -10,7 +10,7 @@ from telegram_bot.core.config import get_settings
 from telegram_bot.tg.bot import create_telegram_application
 from telegram_bot.core.admin import create_admin_if_not_exists
 from telegram_bot.api.auth import router as auth_router
-from telegram_bot.api.admin import router as admin_router
+from telegram_bot.api.Admin.extended import router as admin_router
 from telegram_bot.api.documents import router as documents_router
 from telegram_bot.api.knowledge import router as knowledge_router
 from telegram_bot.api.workflows import router as workflows_router
