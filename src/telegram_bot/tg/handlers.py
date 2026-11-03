@@ -94,8 +94,20 @@ async def help_handler(
         "/logout\n"
         "Logout from your account.\n\n"
 
-        "/help\n"
-        "Show this help message.\n\n"
+        "/documents\n"
+        "List the user's uploaded documents.\n\n"
+
+        "/memory\n"
+        "View saved long term memories\n\n"
+
+        "/workflows\n"
+        "All your sheduled workflows\n\n"
+
+        "/logout\n"
+        "Logout from your account.\n\n"
+
+        "/ai_help\n"
+        "List the AI Observability commands.\n\n"
 
         "After logging in, simply send me "
         "a message to start chatting."
