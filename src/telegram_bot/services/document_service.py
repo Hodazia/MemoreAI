@@ -13,6 +13,10 @@ from telegram_bot.services.knowledge_service import add_user_knowledge
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".text"}
 
 async def extract_text(file_path:str) -> str:
+    '''
+    extract the path as well as the text from the file
+    
+    '''
     path = Path(file_path)
     extension = path.suffix.lower()
 
@@ -47,6 +51,9 @@ async def index_document(
     document:Document,
     user_id:int
 ):
+    '''
+    add the document to the vector DB Pinecone
+    '''
 
     document.status = "processing"
     document.error_message = None

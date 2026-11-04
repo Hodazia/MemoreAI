@@ -110,6 +110,7 @@ async def telegram_webhook(request: Request):
             data=data,
             bot=telegram_application.bot,
         )
+        # the above method converts the JSON data into a telegram bot
 
         await telegram_application.update_queue.put(update)
 

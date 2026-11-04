@@ -53,8 +53,8 @@ class Settings(BaseSettings):
     smtp_password: str
     smtp_from: str
 
-    llm_input_cost: Decimal = 0.15
-    llm_output_cost: Decimal = 0.60
+    llm_model_input_cost: Decimal = 0.15
+    llm_model_output_cost: Decimal = 0.60
 
 
 @lru_cache

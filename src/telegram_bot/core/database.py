@@ -39,5 +39,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 async def create_tables():
+    '''
+    create all the tables!
+    '''
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

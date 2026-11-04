@@ -65,6 +65,11 @@ async def get_conversation_messages(
     conversation_id: int,
     limit: int = 20,
 ) -> list[Message]:
+    '''
+    will use this in handlers.py to store the current message as well as retrieve the previous messages 
+    as context to give to the AI Agent!
+    
+    '''
 
     result = await db.execute(
         select(Message)

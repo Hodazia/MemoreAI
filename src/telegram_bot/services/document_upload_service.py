@@ -23,7 +23,7 @@ async def save_and_index_document(
     file_size: int,
     downloaded_path: str,
 ):
-    extension = Path(original_filename).suffix.lower()
+    extension = Path(original_filename).suffix.lower()  # e.g. .pdf, .docx 
 
     if extension not in SUPPORTED_EXTENSIONS:
         raise ValueError("Supported formats: PDF, DOCX, TXT.")
@@ -31,7 +31,7 @@ async def save_and_index_document(
     if file_size > MAX_FILE_SIZE:
         raise ValueError("The maximum supported file size is 10 MB.")
 
-    stored_filename = f"{uuid4().hex}{extension}"
+    stored_filename = f"{uuid4().hex}{extension}" # the new filename to be stored in /uploads/stored_filename
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     final_path = UPLOAD_DIR / stored_filename

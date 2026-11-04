@@ -7,6 +7,10 @@ async def get_latest_documents(
     user_id:int,
     limit:int = 5
 ):
+    '''
+    fetch the indexed documents only
+    
+    '''
     result = await db.execute(
         select(Document)
         .where(

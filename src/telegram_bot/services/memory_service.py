@@ -12,6 +12,9 @@ async def create_memory(
     user_id:int,
     content:str
 ) -> Memory:
+    '''
+    create a memory, we will enforce max memories per user 
+    '''
     content = content.strip()
 
     if not content:
@@ -26,11 +29,11 @@ async def create_memory(
     count_result = await db.execute(
         select(Memory.id)
         .where(Memory.user_id == user_id)
-        .limit(MAX_MEMORIES_PER_USER + 1)
+        .limit(MAX_MEMORIES_PER_USER + 1)  # limit the count of result to max-memories per user+1
     )
 
-    existing_ids = count_result.scalars().all()
-    if len(existing_ids) >= MAX_MEMORIES_PER_USER:
+    existing_ids = count_result.scalars().all() 
+    if len(existing_ids) >= MAX_MEMORIES_PER_USER: # if we found > then raise an error
         raise ValueError(
             "You have reached the memory limit. "
             "Delete an existing memory before adding another."
@@ -65,7 +68,7 @@ async def list_memories(
     result = await db.execute(
         select(Memory)
         .where(Memory.user_id == user_id)
-        .order_by(Memory.created_at.desc(), Memory.id.desc())
+        .order_by(Memory.created_at.desc(), Memory.id.desc())  # start from the recent ones
         .limit(MAX_MEMORIES_PER_USER)
     )
 
@@ -77,6 +80,10 @@ async def get_memory(
     user_id: int,
     memory_id: int,
 ) -> Memory | None:
+    '''
+    get a memory by its id 
+    
+    '''
     result = await db.execute(
         select(Memory).where(
             Memory.id == memory_id,
@@ -93,6 +100,9 @@ async def update_memory(
     memory_id: int,
     content: str,
 ) -> Memory | None:
+    '''
+    update memory
+    '''
     content = content.strip()
 
     if not content:
@@ -151,6 +161,9 @@ async def get_memories_for_agent(
     user_id: int,
     limit: int = 10,
 ) -> list[Memory]:
+    '''
+    filter memories to be passed as context to the agent
+    '''
     result = await db.execute(
         select(Memory)
         .where(Memory.user_id == user_id)

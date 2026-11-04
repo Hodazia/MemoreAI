@@ -36,6 +36,22 @@ LOGIN_USERNAME = 3
 LOGIN_PASSWORD = 4
 
 
+async def get_logged_in_user(
+    telegram_user_id: int,
+):
+
+    async with AsyncSessionLocal() as db:
+
+        session = await get_telegram_session(
+            db,
+            telegram_user_id,
+        )
+
+        if not session:
+            return None
+
+        return session.user_id
+
 async def start_handler(
     update,
     context,
@@ -276,21 +292,6 @@ async def logout_handler(
         "You have been logged out."
     )
 
-async def get_logged_in_user(
-    telegram_user_id: int,
-):
-
-    async with AsyncSessionLocal() as db:
-
-        session = await get_telegram_session(
-            db,
-            telegram_user_id,
-        )
-
-        if not session:
-            return None
-
-        return session.user_id
 
 # async def message_handler(
 #     update,
@@ -380,12 +381,12 @@ async def message_handler(
 ):
 
     message  = update.effective_message
-    telegram_user = update.effective_user
+    telegram_user = update.effective_user # this return the current telegram user which sends the message now
 
     if message is None or telegram_user is None:
         return
 
-    user_text = message.text
+    user_text = message.text  # extract the text field from the message 
 
     if not user_text or not user_text.strip():
         await message.reply_text(
@@ -393,7 +394,7 @@ async def message_handler(
         )
         return
 
-    telegram_user_id = telegram_user.id
+    telegram_user_id = telegram_user.id  # get the id from the telegram_user to authenticate it
 
     await message.chat.send_action("typing")
     #user_text = update.message.text

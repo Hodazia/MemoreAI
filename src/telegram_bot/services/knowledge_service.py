@@ -28,6 +28,7 @@ async def add_user_knowledge(
 
     namespace = f"user-{user_id}"
 
+    # for each chunk give it a context of user_id, source and document_id, 
     for chunk in chunks:
         chunk.metadata.update({
             "user_id": str(user_id),
