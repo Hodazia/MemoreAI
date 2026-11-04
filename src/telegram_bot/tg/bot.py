@@ -26,6 +26,27 @@ from telegram_bot.tg.handlers import (
     documents_handler
 )
 
+from telegram_bot.tg.handlers import (
+    WORKFLOW_NAME,
+    WORKFLOW_PROMPT,
+    WORKFLOW_TIME,
+    WORKFLOW_CHANNELS,
+    WORKFLOW_TIMEZONE, 
+
+    workflow_create_start,
+    workflow_name_input,
+    workflow_prompt_input,
+    workflow_time_input,
+    workflow_timezone_input,
+    workflow_channels_input,
+    workflows_list_handler,
+    workflow_enable_handler,
+    workflow_disable_handler,
+    workflow_run_handler,
+    workflow_toggle_handler,
+    workflow_cancel_handler
+)
+
 from telegram_bot.tg.memory_handlers import (
     remember_handler, 
     memory_handler,
@@ -162,6 +183,73 @@ def create_telegram_application():
             filters.Document.ALL,
             document_upload_handler
         )
+    )
+
+
+    workflow_creation_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler(
+                "workflow_create",
+                workflow_create_start,
+            )
+        ],
+        states={
+            WORKFLOW_NAME: [
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                workflow_name_input,
+            )
+        ],
+        WORKFLOW_PROMPT: [
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                workflow_prompt_input,
+            )
+        ],
+        WORKFLOW_TIME: [
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                workflow_time_input,
+            )
+        ],
+        WORKFLOW_TIMEZONE: [
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                workflow_timezone_input,
+            )
+        ],
+        WORKFLOW_CHANNELS: [
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                workflow_channels_input,
+            )
+        ],
+    },
+    fallbacks=[
+        CommandHandler(
+            "cancel",
+            workflow_cancel_handler,
+        )
+    ],
+    )
+
+    application.add_handler(workflow_creation_handler)
+
+
+    application.add_handler(
+        CommandHandler("workflows", workflows_list_handler)
+    )
+
+    application.add_handler(
+        CommandHandler("workflow_enable", workflow_enable_handler)
+    )
+
+    application.add_handler(
+        CommandHandler("workflow_disable", workflow_disable_handler)
+    )
+
+    application.add_handler(
+        CommandHandler("workflow_run", workflow_run_handler)
     )
 
     application.add_handler(

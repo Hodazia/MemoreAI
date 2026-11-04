@@ -17,8 +17,8 @@ settings = get_settings()
 #USD per 1 million tokens,
 MODEL_PRICING:dict[str, dict[str,Decimal]] = {
     "gpt-4o-mini":{
-        "input": settings.llm_input_cost,
-        "output": settings.llm_output_cost,
+        "input": settings.llm_model_input_cost,
+        "output": settings.llm_model_output_cost,
     },
 }
 

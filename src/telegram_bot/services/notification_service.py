@@ -7,6 +7,15 @@ from telegram_bot.core.config import get_settings
 settings = get_settings()
 
 async def send_email_report(recipient:str,subject:str, body:str):
+    if not all([
+        settings.smtp_username,
+        settings.smtp_password,
+        settings.smtp_from
+    ]):
+        raise RuntimeError(
+            "SMTP Configuration is incomplete"
+        )
+
     message = EmailMessage()
     message["From"] = settings.smtp_from
     message["To"] = recipient
@@ -19,7 +28,8 @@ async def send_email_report(recipient:str,subject:str, body:str):
         port=settings.smtp_port,
         start_tls=True,
         username=settings.smtp_username,
-        password=settings.smtp_password
+        password=settings.smtp_password,
+        timeout=30,
     )
 
 async def send_telegram_report(

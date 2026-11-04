@@ -16,12 +16,12 @@ celery_app.conf.update(
     enable_utc=True,
     beat_schedule={
         "check-due-workflows-every-minute": {
-            "task": "telegram_bot.tasks.workflows.dispatch_due_workflows",
+            "task": "telegram_bot.tasks.workflows.dispatch_due_workflows",  # publish the dispatcher task every 60 sec
             "schedule": 60.0,
         },
     },
-    task_acks_late=True,
-    task_reject_on_worker_lost=True,
+    task_acks_late=True, # acknowledges a task when a worker receives it, after execution instead
+    task_reject_on_worker_lost=True, # reject a task if the worker process disappears unexpectedly , allowing redelivery
     worker_prefetch_multiplier=1,
 )
 

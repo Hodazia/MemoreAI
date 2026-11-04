@@ -5,10 +5,17 @@ from uuid import uuid4
 from telegram import Update
 from telegram.ext import ContextTypes
 from sqlalchemy import select
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+from pydantic import ValidationError
+
+
 
 from telegram_bot.agents.agent import ask_agent
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from telegram.ext import ConversationHandler
 from telegram_bot.core.database import AsyncSessionLocal
 from telegram_bot.services.auth_service import (
     create_telegram_session,
@@ -23,6 +30,11 @@ from telegram_bot.services.conversation_service import (
     save_message,
 )
 from telegram_bot.models.document import Document
+from telegram_bot.models.user import User
+from telegram_bot.models.workflow import Workflow
+from telegram_bot.models.workflow_runs import WorkflowRun
+from telegram_bot.tasks.workflows import next_daily_run , execute_workflow
+from telegram_bot.schemas.workflow import WorkflowCreateRequest,WorkflowResponse
 from telegram_bot.services.document_upload_service import save_and_index_document, MAX_FILE_SIZE
 from telegram_bot.services.document_service import SUPPORTED_EXTENSIONS
 
@@ -34,6 +46,13 @@ REGISTER_PASSWORD = 2
 
 LOGIN_USERNAME = 3
 LOGIN_PASSWORD = 4
+
+
+WORKFLOW_NAME = 5
+WORKFLOW_PROMPT = 6
+WORKFLOW_TIME = 7
+WORKFLOW_TIMEZONE = 8
+WORKFLOW_CHANNELS = 9
 
 
 async def get_logged_in_user(
@@ -116,8 +135,23 @@ async def help_handler(
         "/memory\n"
         "View saved long term memories\n\n"
 
+        "/workflow_create\n"
+        "Create a daily scheduled AI workflow.\n\n"
+
         "/workflows\n"
-        "All your sheduled workflows\n\n"
+        "List all your scheduled workflows.\n\n"
+
+        "/workflow_enable <id>\n"
+        "Enable a workflow.\n\n"
+
+        "/workflow_disable <id>\n"
+        "Disable a workflow.\n\n"
+
+        "/workflow_run <id>\n"
+        "Execute a workflow immediately.\n\n"
+
+        "/cancel\n"
+        "Cancel the current workflow creation process.\n\n"
 
         "/logout\n"
         "Logout from your account.\n\n"
@@ -656,3 +690,506 @@ async def documents_handler(
         )
 
     await message.reply_text("\n".join(lines))
+
+
+async def workflow_create_start(
+    update:Update,
+    context:ContextTypes
+):
+    message = update.effective_message
+    telegram_user = update.effective_user
+
+    if message is None or telegram_user is None:
+        return -1
+
+    async with AsyncSessionLocal() as db:
+        session = await get_telegram_session(
+            db,
+            telegram_user.id,
+        )
+
+    if not session:
+        await message.reply_text(
+            "Please /login before creating a workflow."
+        )
+        return -1
+
+    context.user_data["workflow_data"] = {}
+
+    await message.reply_text(
+        "Let's create a scheduled workflow.\n\n"
+        "Enter a name for your workflow.\n"
+        "Example: Daily research report"
+    )
+
+    return WORKFLOW_NAME
+
+
+async def workflow_name_input(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+
+    if message is None or not message.text:
+        return WORKFLOW_NAME
+
+    name = message.text.strip()
+
+    if not 1 <= len(name) <= 150:
+        await message.reply_text(
+            "Name must contain between 1 and 150 characters."
+        )
+        return WORKFLOW_NAME
+
+    context.user_data["workflow_data"]["name"] = name
+
+    await message.reply_text(
+        "Great! Now describe what the AI should do.\n\n"
+        "Example:\n"
+        "Analyse my latest five documents, identify important "
+        "findings, and prepare a concise report."
+    )
+
+    return WORKFLOW_PROMPT
+
+
+async def workflow_prompt_input(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+
+    if message is None or not message.text:
+        return WORKFLOW_PROMPT
+
+    prompt = message.text.strip()
+
+    if not 5 <= len(prompt) <= 3000:
+        await message.reply_text(
+            "Your instructions must contain 5 to 3000 characters."
+        )
+        return WORKFLOW_PROMPT
+
+    context.user_data["workflow_data"]["prompt"] = prompt
+
+    await message.reply_text(
+        "At what time should this workflow run every day?\n\n"
+        "Use 24-hour format: HH:MM\n"
+        "Example: 09:30"
+    )
+
+    return WORKFLOW_TIME
+
+
+async def workflow_time_input(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+
+    if message is None or not message.text:
+        return WORKFLOW_TIME
+
+    schedule_time = message.text.strip()
+
+    try:
+        datetime.strptime(schedule_time, "%H:%M")
+    except ValueError:
+        await message.reply_text(
+            "Invalid time. Please enter HH:MM, e.g. 09:30."
+        )
+        return WORKFLOW_TIME
+
+    context.user_data["workflow_data"]["schedule_time"] = (
+        schedule_time
+    )
+
+    await message.reply_text(
+        "Enter your timezone.\n\n"
+        "Default: Asia/Kolkata\n"
+        "Examples: Asia/Kolkata, Europe/London, UTC"
+    )
+
+    return WORKFLOW_TIMEZONE
+
+
+async def workflow_timezone_input(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+
+    if message is None or not message.text:
+        return WORKFLOW_TIMEZONE
+
+    timezone_name = message.text.strip()
+
+    try:
+        ZoneInfo(timezone_name)
+    except Exception:
+        await message.reply_text(
+            "Invalid timezone. Try Asia/Kolkata or UTC."
+        )
+        return WORKFLOW_TIMEZONE
+
+    context.user_data["workflow_data"]["timezone"] = (
+        timezone_name
+    )
+
+    await message.reply_text(
+        "Where should I send the report?\n\n"
+        "Reply with one of:\n"
+        "1 - Telegram only\n"
+        "2 - Email only\n"
+        "3 - Both Telegram and email"
+    )
+
+    return WORKFLOW_CHANNELS
+
+
+async def workflow_channels_input(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+    telegram_user = update.effective_user
+
+    if message is None or telegram_user is None or not message.text:
+        return WORKFLOW_CHANNELS
+
+    choice = message.text.strip()
+
+    channels = {
+        "1": (True, False),
+        "2": (False, True),
+        "3": (True, True),
+    }
+
+    # Step 1: Validate channel selection.
+    if choice not in channels:
+        await message.reply_text(
+            "Please select 1, 2, or 3.\n\n"
+            "1 - Telegram only\n"
+            "2 - Email only\n"
+            "3 - Both Telegram and email"
+        )
+        return WORKFLOW_CHANNELS
+
+    telegram_enabled, email_enabled = channels[choice]
+
+    # Step 2: Retrieve previously collected workflow data.
+    data = context.user_data.get("workflow_data")
+
+    if not data:
+        await message.reply_text(
+            "Your workflow creation session has expired. "
+            "Please use /workflow_create again."
+        )
+        return ConversationHandler.END
+
+    # Step 3: Validate workflow configuration.
+    try:
+        request = WorkflowCreateRequest(
+            **data,
+            telegram_enabled=telegram_enabled,
+            email_enabled=email_enabled,
+        )
+
+    except ValidationError as exc:
+        await message.reply_text(
+            f"Invalid workflow configuration: {exc}"
+        )
+        return WORKFLOW_CHANNELS
+
+    # Step 4: Authenticate Telegram user and check email.
+    async with AsyncSessionLocal() as db:
+
+        session = await get_telegram_session(
+            db,
+            telegram_user.id,
+        )
+
+        if not session:
+            await message.reply_text(
+                "Your login session has expired. Please /login."
+            )
+
+            context.user_data.pop("workflow_data", None)
+            return ConversationHandler.END
+
+        if email_enabled:
+
+            user = await db.get(User, session.user_id)
+
+            if not user or not getattr(user, "email", None):
+
+                await message.reply_text(
+                    "Your account has no email address configured.\n\n"
+                    "Choose Telegram only, or configure your email first.\n\n"
+                    "Reply with:\n"
+                    "1 - Telegram only\n"
+                    "2 - Email only\n"
+                    "3 - Both Telegram and email"
+                )
+
+                # CRITICAL FIX:
+                # Preserve workflow_data and keep the conversation alive.
+                return WORKFLOW_CHANNELS
+
+        # Step 5: Calculate the next scheduled execution.
+        next_run_at = next_daily_run(
+            request.schedule_time,
+            request.timezone,
+        )
+
+        # Step 6: Create workflow in PostgreSQL.
+        workflow = Workflow(
+            user_id=session.user_id,
+            name=request.name,
+            prompt=request.prompt,
+            schedule_time=request.schedule_time,
+            timezone=request.timezone,
+            next_run_at=next_run_at,
+            telegram_enabled=request.telegram_enabled,
+            email_enabled=request.email_enabled,
+            enabled=True,
+        )
+
+        db.add(workflow)
+
+        await db.commit()
+        await db.refresh(workflow)
+
+        workflow_id = workflow.id
+
+    # Step 7: Clear temporary conversation data only after success.
+    context.user_data.pop("workflow_data", None)
+
+    # Step 8: Confirm workflow creation.
+    await message.reply_text(
+        "✅ Workflow created successfully!\n\n"
+        f"ID: {workflow_id}\n"
+        f"Name: {request.name}\n"
+        f"Schedule: {request.schedule_time}\n"
+        f"Timezone: {request.timezone}\n"
+        f"Next execution: {next_run_at.isoformat()}\n"
+        f"Telegram: {'Enabled' if telegram_enabled else 'Disabled'}\n"
+        f"Email: {'Enabled' if email_enabled else 'Disabled'}\n\n"
+        "Use /workflows to see all your workflows."
+    )
+
+    return ConversationHandler.END
+
+
+
+async def workflows_list_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+    telegram_user = update.effective_user
+
+    if message is None or telegram_user is None:
+        return
+
+    async with AsyncSessionLocal() as db:
+        session = await get_telegram_session(
+            db,
+            telegram_user.id,
+        )
+
+        if not session:
+            await message.reply_text("Please /login first.")
+            return
+
+        result = await db.execute(
+            select(Workflow)
+            .where(Workflow.user_id == session.user_id)
+            .order_by(Workflow.created_at.desc())
+        )
+
+        workflows = result.scalars().all()
+
+        if not workflows:
+            await message.reply_text(
+                "You don't have any workflows yet.\n\n"
+                "Use /workflow_create to create one."
+            )
+            return
+
+        lines = ["📋 Your scheduled workflows:\n"]
+
+        for workflow in workflows:
+            lines.append(
+                f"ID: {workflow.id}\n"
+                f"Name: {workflow.name}\n"
+                f"Schedule: {workflow.schedule_time} "
+                f"({workflow.timezone})\n"
+                f"Next run: {workflow.next_run_at.isoformat()}\n"
+                f"Status: {'Enabled' if workflow.enabled else 'Disabled'}\n"
+                f"Telegram: {workflow.telegram_enabled}\n"
+                f"Email: {workflow.email_enabled}\n"
+                "-------------------------"
+            )
+
+    await message.reply_text("\n".join(lines))
+
+
+async def workflow_toggle_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    enabled: bool,
+):
+    message = update.effective_message
+    telegram_user = update.effective_user
+
+    if message is None or telegram_user is None:
+        return
+
+    if len(context.args) != 1:
+        command = "workflow_enable" if enabled else "workflow_disable"
+        await message.reply_text(
+            f"Usage: /{command} <workflow_id>"
+        )
+        return
+
+    try:
+        workflow_id = int(context.args[0])
+    except ValueError:
+        await message.reply_text("Workflow ID must be a number.")
+        return
+
+    async with AsyncSessionLocal() as db:
+        session = await get_telegram_session(
+            db,
+            telegram_user.id,
+        )
+
+        if not session:
+            await message.reply_text("Please /login first.")
+            return
+
+        result = await db.execute(
+            select(Workflow).where(
+                Workflow.id == workflow_id,
+                Workflow.user_id == session.user_id,
+            )
+        )
+
+        workflow = result.scalar_one_or_none()
+
+        if not workflow:
+            await message.reply_text(
+                "Workflow not found."
+            )
+            return
+
+        workflow.enabled = enabled
+
+        if enabled:
+            # Recalculate the next occurrence when re-enabled.
+            workflow.next_run_at = next_daily_run(
+                workflow.schedule_time,
+                workflow.timezone,
+            )
+
+        await db.commit()
+
+    status = "enabled" if enabled else "disabled"
+
+    await message.reply_text(
+        f"✅ Workflow {workflow_id} has been {status}."
+    )
+
+
+async def workflow_enable_handler(update, context):
+    await workflow_toggle_handler(
+        update, context, enabled=True
+    )
+
+
+async def workflow_disable_handler(update, context):
+    await workflow_toggle_handler(
+        update, context, enabled=False
+    )
+
+
+async def workflow_run_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    message = update.effective_message
+    telegram_user = update.effective_user
+
+    if message is None or telegram_user is None:
+        return
+
+    if len(context.args) != 1:
+        await message.reply_text(
+            "Usage: /workflow_run <workflow_id>"
+        )
+        return
+
+    try:
+        workflow_id = int(context.args[0])
+    except ValueError:
+        await message.reply_text(
+            "Workflow ID must be a number."
+        )
+        return
+
+    async with AsyncSessionLocal() as db:
+        session = await get_telegram_session(
+            db,
+            telegram_user.id,
+        )
+
+        if not session:
+            await message.reply_text("Please /login first.")
+            return
+
+        result = await db.execute(
+            select(Workflow).where(
+                Workflow.id == workflow_id,
+                Workflow.user_id == session.user_id,
+                Workflow.enabled.is_(True),
+            )
+        )
+
+        workflow = result.scalar_one_or_none()
+
+        if not workflow:
+            await message.reply_text(
+                "Enabled workflow not found."
+            )
+            return
+
+        run = WorkflowRun(
+            workflow_id=workflow.id,
+            status="queued",
+        )
+
+        db.add(run)
+        await db.commit()
+        await db.refresh(run)
+
+        run_id = run.id
+
+    # Enqueue after the database commit.
+    execute_workflow.delay(workflow_id, run_id)
+
+    await message.reply_text(
+        f"🚀 Workflow {workflow_id} has been queued.\n"
+        f"Run ID: {run_id}\n\n"
+        "I'll send the report when execution finishes."
+    )
+
+async def workflow_cancel_handler(update, context):
+    context.user_data.pop("workflow_data", None)
+
+    await update.effective_message.reply_text(
+        "Workflow creation cancelled."
+    )
+
+    return ConversationHandler.END

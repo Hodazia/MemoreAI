@@ -118,7 +118,7 @@ async def execute_workflow_async(
             return 
 
         if not workflow.enabled:
-            run.status = "cancelled"
+            run.status = "cancelled"  # a user might disable a workflow after the dispatcher has queued it but before the worker starts executing it
             await db.commit()
             return
 
@@ -160,6 +160,7 @@ async def execute_workflow_async(
         # Recipients come from trusted account/session records.
         await db.commit()
 
+        # fetch the user's documents for context enrichment for LLM
         latest_documents = await get_latest_documents(
         db=db,
         user_id=user_id,

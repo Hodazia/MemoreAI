@@ -49,9 +49,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
-    smtp_username: str
-    smtp_password: str
-    smtp_from: str
+    smtp_username: str | None = None
+    smtp_password: str | None = None 
+    smtp_from: str | None = None
 
     llm_model_input_cost: Decimal = 0.15
     llm_model_output_cost: Decimal = 0.60
