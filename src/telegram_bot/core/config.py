@@ -2,6 +2,7 @@ from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 
+from langchain_tavily import tavily_research
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
@@ -55,6 +56,12 @@ class Settings(BaseSettings):
 
     llm_model_input_cost: Decimal = 0.15
     llm_model_output_cost: Decimal = 0.60
+
+    # Tavily web search configuration
+
+    tavily_api_key: str | None = None
+    tavily_max_results: int = 8
+    tavily_research_model: str = "pro"
 
 
 @lru_cache

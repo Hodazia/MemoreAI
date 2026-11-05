@@ -1,88 +1,112 @@
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
 
+from sqlalchemy import select
+
+from telegram_bot.core.database import AsyncSessionLocal
 from telegram_bot.models.conversation import Conversation
 from telegram_bot.models.message import Message
 from telegram_bot.agents.agent import ask_agent
 
 
 async def process_user_message(
-    db: AsyncSession,
     *,
     user_id: int,
     conversation_id: int,
     content: str,
 ) -> str:
-    """
-    Shared application service.
 
-    Used by:
-    - Telegram message handler
-    - Internal load testing
-    - Future REST chat endpoint
+    # -------------------------------------------
+    # 1. Validate conversation and persist input
+    # -------------------------------------------
 
-    It persists both sides of the conversation.
-    """
+    async with AsyncSessionLocal() as db:
 
-    # 1. Verify conversation ownership.
-    conversation = await db.scalar(
-        select(Conversation).where(
-            Conversation.id == conversation_id,
-            Conversation.user_id == user_id,
+        conversation = await db.scalar(
+            select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+            )
         )
-    )
 
-    if conversation is None:
-        raise ValueError("Conversation not found.")
+        if conversation is None:
+            raise ValueError("Conversation not found.")
 
-    # 2. Persist incoming user message.
-    user_message = Message(
-        conversation_id=conversation_id,
-        role="user",
-        content=content,
-    )
-
-    db.add(user_message)
-    await db.commit()
-
-    # 3. Load conversation history.
-    result = await db.execute(
-        select(Message)
-        .where(
-            Message.conversation_id == conversation_id
+        db.add(
+            Message(
+                conversation_id=conversation_id,
+                role="user",
+                content=content,
+            )
         )
-        .order_by(Message.created_at.asc())
-    )
 
-    history = result.scalars().all()
+        conversation.updated_at = datetime.now(timezone.utc)
 
-    # 4. Convert SQLAlchemy records into agent messages.
-    messages = [
-        (message.role, message.content)
-        for message in history
-    ]
+        await db.commit()
 
-    # 5. Invoke your actual agent.
+    # -------------------------------------------
+    # 2. Fetch conversation history
+    # -------------------------------------------
+
+    async with AsyncSessionLocal() as db:
+
+        result = await db.execute(
+            select(Message)
+            .join(
+                Conversation,
+                Message.conversation_id == Conversation.id,
+            )
+            .where(
+                Message.conversation_id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+            .order_by(Message.created_at.asc())
+        )
+
+        history = result.scalars().all()
+
+        messages = [
+            (message.role, message.content)
+            for message in history
+        ]
+
+    # The DB session is now closed.
+    # We don't hold a DB connection during the LLM call.
+
+    # -------------------------------------------
+    # 3. Invoke the actual AI agent
+    # -------------------------------------------
+
     response = await ask_agent(
         messages=messages,
         user_id=user_id,
     )
 
-    # 6. Persist assistant response.
-    assistant_message = Message(
-        conversation_id=conversation_id,
-        role="assistant",
-        content=response,
-    )
+    # -------------------------------------------
+    # 4. Persist assistant response
+    # -------------------------------------------
 
-    db.add(assistant_message)
+    async with AsyncSessionLocal() as db:
 
-    # Update conversation activity.
-    # This assumes updated_at is writable in your model.
-    from datetime import datetime, timezone
+        conversation = await db.scalar(
+            select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+        )
 
-    conversation.updated_at = datetime.now(timezone.utc)
+        if conversation is None:
+            raise ValueError("Conversation was deleted.")
 
-    await db.commit()
+        db.add(
+            Message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=response,
+            )
+        )
+
+        conversation.updated_at = datetime.now(timezone.utc)
+
+        await db.commit()
 
     return response

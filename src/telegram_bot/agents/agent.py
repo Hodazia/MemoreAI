@@ -5,6 +5,7 @@ from telegram_bot.agents.prompts import SYSTEM_PROMPT
 from telegram_bot.core.config import get_settings
 from telegram_bot.agents.tools import (
     AgentContext,
+    build_agent_tools,
     build_document_tools
 )
 from telegram_bot.core.database import AsyncSessionLocal
@@ -41,6 +42,12 @@ async def ask_agent(messages: list[tuple[str, str]],user_id: int,*, observabilit
     Invoke the agent with conversation history and user-approved persistent memories
 
     Each message is a (role,content) tuple
+    Available capabilities:
+        1. General question answering.
+        2. User-specific document search (RAG).
+        3. Real-time web search using Tavily.
+        4. User-approved persistent memory.
+        5. AI observability and tracing.
 
     Observability is enabled by default, set observability = false, only for calls that should deliberately
     not be tracked
@@ -88,7 +95,7 @@ async def ask_agent(messages: list[tuple[str, str]],user_id: int,*, observabilit
 
 
         # 1. Generate the tools list for this specific user
-        user_tools = build_document_tools(user_id=user_id)
+        user_tools = build_agent_tools(user_id=user_id)
 
         # 2. Instantiate the agent dynamically with the active user's tools
         dynamic_agent = create_agent(
