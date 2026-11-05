@@ -17,6 +17,12 @@ async def create_admin_if_not_exists():
     settings = get_settings()
 
     async with AsyncSessionLocal() as db:
+        '''
+        it automatically opens the DB connection under the variable name db,
+        and guarantees that the connection is closed properly when the code block
+        finishes, 
+        
+        '''
         result = await db.execute(
             select(User).where(
                 User.username
@@ -26,6 +32,9 @@ async def create_admin_if_not_exists():
 
         existing = result.scalar_one_or_none()
         if existing:
+            '''
+            if an admin already exists don't create a new one
+            '''
             return
 
         admin = User(

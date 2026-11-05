@@ -28,6 +28,11 @@ def verify_password(
 # user_id -> jwt -> session_token!
 def create_access_token(user_id: int) -> str:
 
+    '''
+    if we run datetime.now(timezone.utc) in our country, it will force the time to give in UTC not in IST
+    Even if we deploy on AWS EC2, it will still give the same UTC time
+    the below has no problem since we are calculating a duration to expire, we do not require the current time
+    '''
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
     )

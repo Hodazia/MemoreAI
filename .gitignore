@@ -13,3 +13,6 @@ wheels/
 
 # Uploads
 uploads/
+
+#DB
+celerybeat-schedule.db
